@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>用户展示</title>
+</head>
+<body>
+    <h1>常用数据形式</h1>
+    <p>Hell {{ name }}!</p>
+    <p>字典:{{ mydict["key"] }}</p>
+    <p>列表:{{ mylist }}</p>
+    <p>元组:{{ mytuple }}</p>
+    <p>数字:{{ myint }}</p>
+    <p>对象方法的返回值:{{ u.my_method() }}</p>
+
+    <hr color="orange">
+    <h1>变量过滤器</h1>
+    <p>safe:渲染时不对标签进行转义{{ h1|safe }}</p>
+    <p>capitalize:把值的首字母转换为大写，其他字母转换为小写{{ words|capitalize }}</p>
+    <p>lower:把值转换为小写形式{{ words|lower }}</p>
+    <p>upper:把值转换为大写{{ words|upper }}</p>
+    <p>title：把值中的每个单词的首字母转换为大写{{ words|title }}</p>
+    <p>trim：把值的首尾空格去掉{{ words|trim }}</p>
+    <p>striptags：渲染之前把值中的所有HTML标签全删掉{{ h1|striptags }}</p>
+
+    <hr color="orange">
+    <h1>选择结构</h1>
+
+    {% if admin %}
+        hello,{{ name }}
+    {% elif age %}
+        今年：{{ age }}
+    {% else %}
+        hello,Stranger!
+    {% endif %}
+
+    <hr color="orange">
+    <h1>循环结构</h1>
+    <ul>
+        {% for foo in fruit %}
+        <li>{{ foo }}</li>
+        {% endfor %}
+    </ul>
+
+    <hr color="orange">
+    <h1>宏扩展</h1>
+    {% macro render_comment(comment)%}
+        <li>{{ comment }}</li>
+    {% endmacro %}
+    <ol>
+        {% for f in fruit %}
+            <li>{{ render_comment(f) }}</li>
+        {% endfor %}
+    </ol>
+
+</body>
+</html>
