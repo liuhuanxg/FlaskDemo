@@ -5,6 +5,7 @@ from flask import redirect          # 用于重定向
 from flask import abort             # 响应错误
 from flask import url_for           # 路由分发
 from flask import session           # 引入session
+from flask import flash             # Flash消息
 from flask import render_template   # 返回模板
 from flask_script import Manager    # 使用flask扩展
 from flask_bootstrap import Bootstrap   # bootstrap集成Twitter Bootstrap
@@ -111,10 +112,13 @@ def form():
     Form = NameForm()
     name = None
     if Form.validate_on_submit():
+        old_name = session.get("name")
+        print(old_name)
+        if old_name is not None and old_name != Form.name.data:
+            flash("你已经修改了名字")
         name = Form.name.data
         session["name"] = name
         Form.name.data = ""
-        print(session)
         # 使用重定向可以再刷新页面时不提示是否提交表单数据
         return redirect(url_for("form"))
     return render_template("form.html",form=Form, name=session.get("name"))
