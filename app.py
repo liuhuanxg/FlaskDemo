@@ -28,7 +28,7 @@ def hello_world():
 @app.route("/index")
 def index():
     """主路由"""
-    return "<h1>Bad request</h1>",400
+    return render_template('index.html',current_time=datetime.utcnow())
 
 @app.route("/set_cookie")
 def set_cookie():

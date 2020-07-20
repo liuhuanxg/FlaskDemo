@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 
-<p>
-    当地时间为{{ moment(current_time).format("LLL") }}
-</p>
 
-<p>
-    {{ moment(current_time).formNow(refresh=True) }}
-</p>
+{% block page_content %}
+<p>The local date and time is {{ moment(current_time).format('LLL') }}.</p>
+<p>That was {{ moment(current_time).fromNow(refresh=True) }}</p>
+{% endblock %}
+
