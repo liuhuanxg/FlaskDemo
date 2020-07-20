@@ -1,18 +1,23 @@
+from datetime import datetime
 from flask import Flask
 from flask import make_response     # 封装response
 from flask import redirect          # 用于重定向
-from flask import abort             # 相应错误
-from flask_script import Manager    # 使用flask扩展
+from flask import abort             # 响应错误
+from flask import url_for           # 路由分发
+from flask import session           # 引入session
 from flask import render_template   # 返回模板
+from flask_script import Manager    # 使用flask扩展
 from flask_bootstrap import Bootstrap   # bootstrap集成Twitter Bootstrap
 from flask_moment import Moment     # 本地化日期和时间
-from datetime import datetime
-
+from flask_wtf import Form          # 引入表单
+from wtforms import StringField,SubmitField  # 引入表单字段类型
+from wtforms.validators import Required      # 引入数据校验的必填属性
 
 app = Flask(__name__)
 manager = Manager(app=app)
 bootstrap = Bootstrap(app) 
 moment =  Moment(app)
+app.config["SECRET_KEY"] = "A SECRET STRING"
 
 
 USERS={1:{"name":"youzi"},2:{"name":"xiaxia"}}
@@ -94,6 +99,25 @@ def get_time():
     """配置时间"""
     return render_template("time.html",current_time=datetime.utcnow())
 
+
+# 定义表单类
+class NameForm(Form):
+    name = StringField("姓名：",validators=[Required()])
+    submit = SubmitField("提交")
+
+# 指定方法为GET和POST
+@app.route("/form", methods=["GET", "POST"])
+def form():
+    Form = NameForm()
+    name = None
+    if Form.validate_on_submit():
+        name = Form.name.data
+        session["name"] = name
+        Form.name.data = ""
+        print(session)
+        # 使用重定向可以再刷新页面时不提示是否提交表单数据
+        return redirect(url_for("form"))
+    return render_template("form.html",form=Form, name=session.get("name"))
 
 if __name__ == '__main__':
     app.run(debug=True,host="0.0.0.0")
