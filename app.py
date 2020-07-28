@@ -1,6 +1,9 @@
 import os
+import time
 from datetime import datetime
+from threading import Thread
 from flask import Flask
+from flask import request
 from flask import make_response  # 封装response
 from flask import redirect  # 用于重定向
 from flask import abort  # 响应错误
@@ -15,21 +18,92 @@ from flask_wtf import Form  # 引入表单
 from wtforms import StringField, SubmitField  # 引入表单字段类型
 from wtforms.validators import Required  # 引入数据校验的必填属性
 from flask_sqlalchemy import SQLAlchemy  # 引入sqlalchemy
+from flask_script import Shell  # 引入Shell添加上下文
+from flask_migrate import Migrate, MigrateCommand  # 引入数据库迁移管理
+from flask_mail import Mail     # 引入邮件发送
+from flask_mail import Message  # 引入邮件信息
 
 app = Flask(__name__)
-manager = Manager(app=app)
-bootstrap = Bootstrap(app)
-moment = Moment(app)
+
 app.config["SECRET_KEY"] = "A SECRET STRING"
 
 # 配置数据库
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+
+# 配置用户邮箱
+app.config['MAIL_SERVER'] = 'smtp.163.com'
+app.config['MAIL_PORT'] = 25
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = "18737307883@163.com"
+app.config['MAIL_PASSWORD'] ="lh111111"
+app.config['FLASKY_MAIL_SUBJECT_PREFIX'] = '[Flasky]'
+app.config['FLASKY_MAIL_SENDER'] = '18737307883@163.com'
+app.config['FLASKY_ADMIN'] = '1985054961@qq.com'
+
+
 db = SQLAlchemy(app)
+
+manager = Manager(app=app)
+bootstrap = Bootstrap(app)
+moment = Moment(app)
+mail = Mail(app)
+
+# 绑定迁移
+migrate = Migrate(app, db)
+manager.add_command("db", MigrateCommand)
+
+
+# 用户角色类
+class Role(db.Model):
+    __tablename__ = "roles"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), unique=True)
+    users = db.relationship("User", backref="role", lazy="dynamic")
+
+    def __repr__(self):
+        return "<Role %r>" % self.name
+
+
+# 用户表
+class User(db.Model):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("roles.id"))
+
+    def __repr__(self):
+        return "<User %r>" % self.username
+
 
 USERS = {1: {"name": "youzi"}, 2: {"name": "xiaxia"}}
 
+
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+
+
+manager.add_command("shell", Shell(make_context=make_shell_context))
+
+
+# 异步发送邮件
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
+
+
+# 发送邮件
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['FLASKY_MAIL_SUBJECT_PREFIX'] + subject,
+                  sender=app.config['FLASKY_MAIL_SENDER'], recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+    t = Thread(target=send_async_email, args=[app, msg])
+    t.start()
+    return t
 
 # 查询用户
 def load_user(id):
@@ -39,6 +113,12 @@ def load_user(id):
 
 @app.route('/')
 def hello_world():
+    print(request.url)
+    print()
+    time.sleep(3)
+    # if request.remote_addr == "127.0.0.1":
+    #     abort(404)
+
     return 'Hello World!'
 
 
@@ -133,17 +213,24 @@ def form():
     Form = NameForm()
     name = None
     if Form.validate_on_submit():
-        old_name = session.get("name")
-        print(old_name)
-        if old_name is not None and old_name != Form.name.data:
-            flash("你已经修改了名字")
-        name = Form.name.data
+        username = Form.name.data
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            user = User(username=username)
+            db.session.add(user)
+            db.session.commit()
+            session["known"] = False
+            if app.config.get("FLASKY_ADMIN"):
+                result = send_email(app.config["FLASKY_ADMIN"], "New User", "mail/user", user=user)
+                print("result", result)
+        else:
+            session["known"] = True
         session["name"] = name
         Form.name.data = ""
         # 使用重定向可以再刷新页面时不提示是否提交表单数据
         return redirect(url_for("form"))
-    return render_template("form.html", form=Form, name=session.get("name"))
+    return render_template("form.html", form=Form, name=session.get("name"), known=session.get("known"))
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0")
+    manager.run()
